@@ -50,7 +50,9 @@
 #include "nrf_mbr.h"
 #include "nrf_log.h"
 
+#if (WDT_ENABLED == 1)
 #include "nrf_drv_wdt.h"
+#endif
 
 #if BUTTONS_NUMBER < 1
 #error "Not enough buttons on board"
@@ -75,8 +77,17 @@
 
 #define SCHED_QUEUE_SIZE                20                                                      /**< Maximum number of events in the scheduler queue. */
 
+
+#if (WDT_ENABLED == 1)
 nrf_drv_wdt_channel_id wdt_channel_id;
 app_timer_id_t m_wd_feed_timer_id;
+
+static void wd_feed_timeout_handler(void * p_context) {
+  UNUSED_PARAMETER(p_context);
+  nrf_drv_wdt_feed();
+}
+#endif
+
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -94,10 +105,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
-static void wd_feed_timeout_handler(void * p_context) {
-  UNUSED_PARAMETER(p_context);
-  nrf_drv_wdt_feed();
-}
+
 
 
 /**@brief Function for initialization of LEDs.
@@ -112,11 +120,13 @@ static void leds_init(void)
  */
 static void timers_init(void)
 {
-	  uint32_t err_code;
-	
+	  
     // Initialize timer module, making it use the scheduler.
     APP_TIMER_APPSH_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, true);
 	  
+#if (WDT_ENABLED == 1)
+	  uint32_t err_code;
+	
 	  // init timer
     err_code = app_timer_create(&m_wd_feed_timer_id, APP_TIMER_MODE_REPEATED, wd_feed_timeout_handler);
     APP_ERROR_CHECK(err_code);
@@ -124,7 +134,7 @@ static void timers_init(void)
     // Start timer.
     err_code = app_timer_start(m_wd_feed_timer_id, WD_FEED_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
-	
+#endif
 }
 
 
@@ -206,9 +216,11 @@ int main(void)
     
     leds_init();
 		
+#if (WDT_ENABLED == 1)
 		// WDT hotstart for WDT servicing
     nrf_drv_wdt_hotstart();
     nrf_drv_wdt_feed();
+#endif
 
     // This check ensures that the defined fields in the bootloader corresponds with actual
     // setting in the chip.
