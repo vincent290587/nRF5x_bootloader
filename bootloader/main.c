@@ -65,6 +65,7 @@
 #define IS_SRVC_CHANGED_CHARACT_PRESENT 1                                                       /**< Include the service_changed characteristic. For DFU this should normally be the case. */
 
 #define UPDATE_IN_PROGRESS_LED          BSP_LED_2                                               /**< Led used to indicate that DFU is active. */
+#define BOOTLOADER_BUTTON               BSP_BUTTON_0                                            /**< Button used to enter SW update mode. */
 
 #define APP_TIMER_PRESCALER             0                                                       /**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_MAX_TIMERS            4                                                       /**< Maximum number of simultaneously created timers. */
@@ -137,6 +138,15 @@ static void timers_init(void)
 }
 
 
+/**@brief Function for initializing the button module.
+ */
+static void buttons_init(void)
+{
+    nrf_gpio_cfg_sense_input(BOOTLOADER_BUTTON,
+                             BUTTON_PULL, 
+                             NRF_GPIO_PIN_SENSE_LOW);
+
+}
 
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
@@ -228,6 +238,7 @@ int main(void)
 
     // Initialize.
     timers_init();
+    buttons_init();
 
     (void)bootloader_init();
 
@@ -254,6 +265,7 @@ int main(void)
     }
 
     dfu_start  = app_reset;
+	dfu_start |= ((nrf_gpio_pin_read(BOOTLOADER_BUTTON) == 0) ? true: false);
     
     if (dfu_start || (!bootloader_app_is_valid(DFU_BANK_0_REGION_START)))
     {
